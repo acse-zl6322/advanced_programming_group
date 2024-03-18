@@ -26,7 +26,7 @@ int main() {
     unsigned char* data;
 
     // Read in image file
-    data = stbi_load("..\\Images\\gracehopper.png", &w, &h, &c, 0);
+    data = stbi_load("..\\Images\\tienshan.png", &w, &h, &c, 0);
     // data = stbi_load("..\\Output\\output.png", &w, &h, &c, 0);
 
     // Print image size to screen
@@ -37,9 +37,10 @@ int main() {
     
     // auto filtered = applyGrayScaleFilter(data, w, h, c);
     auto filtered = applyHistogramEqualisation(data, w, h, c);
+    std::cout << "c now:" << c << std::endl;
     // Save image to new filename
     // int success = stbi_write_png("..\\GrayOutput\\output.png", w, h, c, filtered, 0);
-    int success = stbi_write_png("..\\Output\\he_output_3.png", w, h, c, filtered, 0);
+    int success = stbi_write_png("..\\Output\\he_output_2.png", w, h, c, filtered, 0);
     
     // Deallocate memory
     stbi_image_free(data);
@@ -56,10 +57,8 @@ unsigned char* applyGrayScaleFilter(unsigned char* data, const int& w, const int
 }
 
 unsigned char* applyHistogramEqualisation(unsigned char* data, const int& w, const int& h, int& c){
-    unsigned char* result = nullptr;
      if(1 == c) {
         int unormalized_cdf[256] = {0};
-        result = new unsigned char[w * h];
         // frequency count
         for(int i=0; i<w*h; i++)
             unormalized_cdf[*(data + i)] += 1;
@@ -68,58 +67,54 @@ unsigned char* applyHistogramEqualisation(unsigned char* data, const int& w, con
             unormalized_cdf[i] += unormalized_cdf[i-1];
         for(int i=0; i< w*h; i++){
             unsigned char intensity = *(data + i);
-            result[i] = 255 * unormalized_cdf[intensity] / w / h;
+            data[i] = 255 * unormalized_cdf[intensity] / w / h;
         }
      }else if(c >= 3){
-        // If there are more than 3 channels, reduce it to 3 channels
         if(c > 3){
-            unsigned char* reduced_data = new unsigned char[w * h * 3];
-            for(int k=0; k < w*h; k++){
+            unsigned char *reduced_data = new unsigned char[w * h * 3];
+            for (int k = 0; k < w * h; k++) {
                 reduced_data[k * 3] = data[k * c];
                 reduced_data[k * 3 + 1] = data[k * c + 1];
-                reduced_data[k* 3 + 2] = data[k * c + 2];
-            }
-            c = 3;
-            data = reduced_data;
+                reduced_data[k * 3 + 2] = data[k * c + 2];
+             }
+             c = 3;
+             data = reduced_data;
         }
-        result = new unsigned char[w * h * c];
+        // generate a hsv image
         float* hsvData = new float[w * h * c];
-        for(int k= 0; k < w * h; k += c){
-                float h, s, v;
-                rgbToHsvByPixel(data[k*c], data[k*c + 1], data[k*c + 2], h, s, v);
-                hsvData[k * 3] = h;
-                hsvData[k * 3 + 1] = s;
-                hsvData[k * 3 + 2] = v;
+        for(int k=0; k < w*h; k++){
+            float h =0.0f, s = 0.0f, v= 0.0f;
+            rgbToHsvByPixel(data[c * k], data[c * k + 1], data[c * k + 2], h, s, v);
+            hsvData[c * k] = h;
+            hsvData[c * k + 1] = s;
+            hsvData[c * k + 2] = v;
         }
-            // Step 2: Perform histogram equalization on the value (V) channel
-            // (Assuming 256 bins for simplicity)
-            int* histogram = new int[256];
-        for (int i = 0; i < w*h; i += c) {
-                int value = static_cast<int>(hsvData[i + 2] * 255.0f);
-                histogram[value]++;
+        // perform he on values
+        int unormalized_cdf[256] = {0};
+        for(int k=0; k < w*h; k++){
+            int value = static_cast<int>(hsvData[k * c + 2] * 255.0f);
+            unormalized_cdf[value]++;
         }
-        float* cumulativeHistogram = new float[256];
-        cumulativeHistogram[0] = histogram[0];
-        for (int i = 1; i < 256; ++i) 
-                cumulativeHistogram[i] = cumulativeHistogram[i - 1] + histogram[i];
-        for (int i = 0; i < w*h; ++i) {
-                float v = hsvData[i * 3 + 2];
-                int newValue = static_cast<int>((cumulativeHistogram[static_cast<int>(v * 255.0f)] / w/ h) * 255.0f);
-                hsvData[i * 3 + 2] = static_cast<float>(newValue) / 255.0f;
-            }
 
-        for (int i = 0; i < w*h; ++i) {
-                float h = hsvData[i * 3];
-                float s = hsvData[i * 3 + 1];
-                float v = hsvData[i * 3 + 2];
-                unsigned char r, g, b;
-                hsvToRgbByPixel(h, s, v, r, g, b);
-                result[i * 3] = r;
-                result[i * 3 + 1] = g;
-                result[i * 3 + 2] = b;
-            }
-     return result;
-}}
+        // partial sum
+        for(int i = 1; i < 256; i++)
+            unormalized_cdf[i] += unormalized_cdf[i-1];
+        
+        for(int k=0; k < w*h; k++){
+            float original = hsvData[k*c + 2];
+            hsvData[k*c + 2] = unormalized_cdf[static_cast<int>(original * 255.0f)] / w / h;
+        }
+        for(int k=0; k < w*h; k++){
+            unsigned char r =0, g = 0, b= 0;
+            hsvToRgbByPixel(hsvData[c * k], hsvData[c * k + 1], hsvData[c * k + 2], r, g, b);
+            data[c * k] = r;
+            data[c * k + 1] = g;
+            data[c * k + 2] = b;
+        }
+    
+     return data;
+    }
+}
 
 void rgbToHsvByPixel(const unsigned char r, const unsigned char g, const unsigned char b, float &h, float &s, float &v){
     // Convert RGB values to range 0 to 1 by normalizing
