@@ -26,7 +26,7 @@ int main() {
     unsigned char* data;
 
     // Read in image file
-    data = stbi_load("..\\Images\\tienshan.png", &w, &h, &c, 0);
+    data = stbi_load("..\\Images\\gracehopper.png", &w, &h, &c, 0);
     // data = stbi_load("..\\Output\\output.png", &w, &h, &c, 0);
 
     // Print image size to screen
@@ -56,65 +56,137 @@ unsigned char* applyGrayScaleFilter(unsigned char* data, const int& w, const int
     return filtered;
 }
 
-unsigned char* applyHistogramEqualisation(unsigned char* data, const int& w, const int& h, int& c){
-     if(1 == c) {
-        int unormalized_cdf[256] = {0};
-        // frequency count
-        for(int i=0; i<w*h; i++)
-            unormalized_cdf[*(data + i)] += 1;
-        // partial sum
-        for(int i = 1; i < 256; i++)
-            unormalized_cdf[i] += unormalized_cdf[i-1];
-        for(int i=0; i< w*h; i++){
-            unsigned char intensity = *(data + i);
-            data[i] = 255 * unormalized_cdf[intensity] / w / h;
-        }
-     }else if(c >= 3){
-        if(c > 3){
-            unsigned char *reduced_data = new unsigned char[w * h * 3];
+// unsigned char* applyHistogramEqualisation(unsigned char* data, const int& w, const int& h, int& c){
+//      if(1 == c) {
+//         int unormalized_cdf[256] = {0};
+//         // frequency count
+//         for(int i=0; i<w*h; i++)
+//             unormalized_cdf[*(data + i)] += 1;
+//         // partial sum
+//         for(int i = 1; i < 256; i++)
+//             unormalized_cdf[i] += unormalized_cdf[i-1];
+//         for(int i=0; i< w*h; i++){
+//             unsigned char intensity = *(data + i);
+//             data[i] = 255 * unormalized_cdf[intensity] / w / h;
+//         }
+//      }else if(c >= 3){
+//         if(c > 3){
+//             unsigned char *reduced_data = new unsigned char[w * h * 3];
+//             for (int k = 0; k < w * h; k++) {
+//                 reduced_data[k * 3] = data[k * c];
+//                 reduced_data[k * 3 + 1] = data[k * c + 1];
+//                 reduced_data[k * 3 + 2] = data[k * c + 2];
+//              }
+//              c = 3;
+//              data = reduced_data;
+//         }
+//         // generate a hsv image
+//         float* hsvData = new float[w * h * c];
+//         for(int k=0; k < w*h; k++){
+//             float h =0.0f, s = 0.0f, v= 0.0f;
+//             rgbToHsvByPixel(data[c * k], data[c * k + 1], data[c * k + 2], h, s, v);
+//             hsvData[c * k] = h;
+//             hsvData[c * k + 1] = s;
+//             hsvData[c * k + 2] = v;
+//         }
+//         // perform he on values
+//         int unormalized_cdf[256] = {0};
+//         for(int k=0; k < w*h; k++){
+//             int value = static_cast<int>(hsvData[k * c + 2] * 255.0f);
+//             unormalized_cdf[value]++;
+//         }
+
+//         // partial sum
+//         for(int i = 1; i < 256; i++)
+//             unormalized_cdf[i] += unormalized_cdf[i-1];
+        
+//         for(int k=0; k < w*h; k++){
+//             float original = hsvData[k*c + 2];
+//             hsvData[k*c + 2] = unormalized_cdf[static_cast<int>(original * 255.0f)] / w / h;
+//         }
+//         for(int k=0; k < w*h; k++){
+//             unsigned char r =0, g = 0, b= 0;
+//             hsvToRgbByPixel(hsvData[c * k], hsvData[c * k + 1], hsvData[c * k + 2], r, g, b);
+//             data[c * k] = r;
+//             data[c * k + 1] = g;
+//             data[c * k + 2] = b;
+//         }
+    
+//      return data;
+//     }
+// }
+unsigned char* applyHistogramEqualisation(unsigned char* data, const int& w, const int& h, int& c) {
+    if (c == 1) {
+        // Grayscale image
+        int unnormalized_cdf[256] = {0};
+
+        // Frequency count
+        for (int i = 0; i < w * h; i++)
+            unnormalized_cdf[data[i]]++;
+
+        // Partial sum
+        for (int i = 1; i < 256; i++)
+            unnormalized_cdf[i] += unnormalized_cdf[i - 1];
+
+        // Normalize and map values
+        for (int i = 0; i < w * h; i++)
+            data[i] = 255 * unnormalized_cdf[data[i]] / (w * h);
+    } else if (c >= 3) {
+        if (c > 3) {
+            // Reduce channels to 3
+            unsigned char* reduced_data = new unsigned char[w * h * 3];
             for (int k = 0; k < w * h; k++) {
-                reduced_data[k * 3] = data[k * c];
-                reduced_data[k * 3 + 1] = data[k * c + 1];
-                reduced_data[k * 3 + 2] = data[k * c + 2];
-             }
-             c = 3;
-             data = reduced_data;
+                for (int channel = 0; channel < 3; channel++) {
+                    reduced_data[k * 3 + channel] = data[k * c + channel];
+                }
+            }
+            c = 3;
+            // delete[] data; // Free original data
+            data = reduced_data;
         }
-        // generate a hsv image
+
+        // Convert RGB to HSV
         float* hsvData = new float[w * h * c];
-        for(int k=0; k < w*h; k++){
-            float h =0.0f, s = 0.0f, v= 0.0f;
+        for (int k = 0; k < w * h; k++) {
+            float h = 0.0f, s = 0.0f, v = 0.0f;
             rgbToHsvByPixel(data[c * k], data[c * k + 1], data[c * k + 2], h, s, v);
             hsvData[c * k] = h;
             hsvData[c * k + 1] = s;
             hsvData[c * k + 2] = v;
         }
-        // perform he on values
-        int unormalized_cdf[256] = {0};
-        for(int k=0; k < w*h; k++){
+
+        // Perform histogram equalization on V channel
+        int unnormalized_cdf[256] = {0};
+        for (int k = 0; k < w * h; k++) {
             int value = static_cast<int>(hsvData[k * c + 2] * 255.0f);
-            unormalized_cdf[value]++;
+            unnormalized_cdf[value]++;
         }
 
-        // partial sum
-        for(int i = 1; i < 256; i++)
-            unormalized_cdf[i] += unormalized_cdf[i-1];
-        
-        for(int k=0; k < w*h; k++){
-            float original = hsvData[k*c + 2];
-            hsvData[k*c + 2] = unormalized_cdf[static_cast<int>(original * 255.0f)] / w / h;
+        // Partial sum
+        for (int i = 1; i < 256; i++)
+            unnormalized_cdf[i] += unnormalized_cdf[i - 1];
+
+        // Normalize and map values
+        for (int k = 0; k < w * h; k++) {
+            float original = hsvData[k * c + 2];
+            hsvData[k * c + 2] = unnormalized_cdf[static_cast<int>(original * 255.0f)] / static_cast<float>(w * h);
         }
-        for(int k=0; k < w*h; k++){
-            unsigned char r =0, g = 0, b= 0;
+
+        // Convert HSV back to RGB
+        for (int k = 0; k < w * h; k++) {
+            unsigned char r = 0, g = 0, b = 0;
             hsvToRgbByPixel(hsvData[c * k], hsvData[c * k + 1], hsvData[c * k + 2], r, g, b);
             data[c * k] = r;
             data[c * k + 1] = g;
             data[c * k + 2] = b;
         }
-    
-     return data;
+
+        delete[] hsvData; // Free hsvData
     }
+
+    return data;
 }
+
 
 void rgbToHsvByPixel(const unsigned char r, const unsigned char g, const unsigned char b, float &h, float &s, float &v){
     // Convert RGB values to range 0 to 1 by normalizing
