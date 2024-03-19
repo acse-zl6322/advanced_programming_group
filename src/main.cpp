@@ -23,16 +23,19 @@ int main() {
   unsigned char *data;
 
   // Read in image file
-  data = stbi_load("..\\Images\\vh_ct.png", &w, &h, &c, 0);
+  // data = stbi_load("..\\Images\\gracehopper.png", &w, &h, &c, 0);
+  data = stbi_load("..\\Images\\tienshan.png", &w, &h, &c, 0);
   // data = stbi_load("..\\Output\\output.png", &w, &h, &c, 0);
 
   // Print image size to screen
   std::cout << "Image loaded with size " << w << " x " << h << " with " << c
             << " channel(s)." << std::endl;
 //   auto oneChannel = applyGrayScaleFilter(data, w, h, c);
-  auto filtered = applyThreshold(data, 80, w, h, c);
+  // auto filtered = applyHslThreshold(data, 127, w, h, c);
+  auto filtered = applyHslHistogramEqualisation(data, w, h, c);
   std::cout << "c now:" << c << std::endl;
-  int success = stbi_write_png("..\\Output\\4-threshold\\vh_ct_801.png", w, h, c, filtered, 0);
+  // int success = stbi_write_png("..\\Output\\4-threshold\\vh_ct_801.png", w, h, c, filtered, 0);
+  int success = stbi_write_png("..\\Output\\hsl.png", w, h, c, filtered, 0);
   std::cout << "Image saved to file: " << success << std::endl;
   stbi_image_free(data);
 
